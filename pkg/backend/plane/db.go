@@ -3,9 +3,10 @@ package plane
 import (
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type User struct {

@@ -26,6 +26,7 @@ type OIDCAuthenticator struct {
 	stateSecret    string
 	stateTTL       time.Duration
 	allowedDomains map[string]struct{}
+	allowedEmails  map[string]struct{}
 }
 
 type Config struct {
@@ -37,6 +38,7 @@ type Config struct {
 	StateSecret    string
 	StateTTL       time.Duration
 	AllowedDomains []string
+	AllowedEmails  []string
 }
 
 func NewOIDCAuthenticator(cfg Config, backend backend.Backend, cookieManager backend.CookieManager) (*OIDCAuthenticator, error) {
@@ -63,6 +65,11 @@ func NewOIDCAuthenticator(cfg Config, backend backend.Backend, cookieManager bac
 		allowed[strings.ToLower(domain)] = struct{}{}
 	}
 
+	allowedEmails := make(map[string]struct{})
+	for _, email := range cfg.AllowedEmails {
+		allowedEmails[strings.ToLower(email)] = struct{}{}
+	}
+
 	return &OIDCAuthenticator{
 		config:         oauthConfig,
 		verifier:       verifier,
@@ -71,6 +78,7 @@ func NewOIDCAuthenticator(cfg Config, backend backend.Backend, cookieManager bac
 		stateSecret:    cfg.StateSecret,
 		stateTTL:       cfg.StateTTL,
 		allowedDomains: allowed,
+		allowedEmails:  allowedEmails,
 	}, nil
 }
 
@@ -113,6 +121,11 @@ func (a *OIDCAuthenticator) HandleCallback(w http.ResponseWriter, r *http.Reques
 		return err
 	}
 
+	// Проверка email'ов
+	if err := a.validateEmail(userData.Email); err != nil {
+		return err
+	}
+
 	// Provision пользователя в бэкенде
 	userID, err := a.backend.ProvisionUser(ctx, userData)
 	if err != nil {
@@ -148,6 +161,8 @@ func (a *OIDCAuthenticator) extractUserInfo(ctx context.Context, token *oauth2.T
 		Sub               string `json:"sub"`
 		Email             string `json:"email"`
 		Name              string `json:"name"`
+		FamilyName        string `json:"family_name"`
+		GivenName         string `json:"given_name"`
 		PreferredUsername string `json:"preferred_username"`
 	}
 
@@ -157,12 +172,22 @@ func (a *OIDCAuthenticator) extractUserInfo(ctx context.Context, token *oauth2.T
 
 	lastName, firstName := a.splitName(claims.Name)
 
-	return backend.UserData{
+	userData := backend.UserData{
 		Email:     claims.Email,
 		FirstName: firstName,
 		LastName:  lastName,
 		Subject:   claims.Sub,
-	}, nil
+	}
+
+	if claims.FamilyName != "" {
+		userData.LastName = claims.FamilyName
+	}
+
+	if claims.GivenName != "" {
+		userData.FirstName = claims.GivenName
+	}
+
+	return userData, nil
 }
 
 func (a *OIDCAuthenticator) splitName(fullName string) (string, string) {
@@ -190,6 +215,18 @@ func (a *OIDCAuthenticator) validateEmailDomain(email string) error {
 	domain := strings.ToLower(parts[1])
 	if _, allowed := a.allowedDomains[domain]; !allowed {
 		return fmt.Errorf("email domain not allowed")
+	}
+
+	return nil
+}
+
+func (a *OIDCAuthenticator) validateEmail(email string) error {
+	if len(a.allowedEmails) == 0 {
+		return nil
+	}
+
+	if _, allowed := a.allowedEmails[email]; !allowed {
+		return fmt.Errorf("email not allowed")
 	}
 
 	return nil

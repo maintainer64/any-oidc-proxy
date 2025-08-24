@@ -4,10 +4,11 @@ import (
 	"any-oidc-proxy/pkg/backend"
 	oidcauth "any-oidc-proxy/pkg/oidc"
 	"context"
+	"net/http"
+
 	log "github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"net/http"
 )
 
 type PlaneBackend struct {

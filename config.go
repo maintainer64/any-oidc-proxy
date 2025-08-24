@@ -34,6 +34,7 @@ type Config struct {
 	UserInfoCookieName         string
 	SetUserInfoCookie          bool
 	AllowedEmailDomains        []string // optional allowlist, comma-separated
+	AllowedEmails              []string // optional allowlist, comma-separated
 	DefaultUserFirstName       string
 	DefaultUserLastName        string
 	HTTPReadTimeout            time.Duration
@@ -114,6 +115,7 @@ func loadConfig() (*Config, error) {
 		UserInfoCookieName:         getenv("USERINFO_COOKIE_NAME", "oidc_user"),
 		SetUserInfoCookie:          getenvBool("SET_USERINFO_COOKIE", true),
 		AllowedEmailDomains:        getenvCSV("ALLOWED_EMAIL_DOMAINS"),
+		AllowedEmails:              getenvCSV("ALLOWED_EMAILS"),
 		DefaultUserFirstName:       getenv("DEFAULT_USER_FIRST_NAME", "User"),
 		DefaultUserLastName:        getenv("DEFAULT_USER_LAST_NAME", "OIDC"),
 		HTTPReadTimeout:            getenvDuration("HTTP_READ_TIMEOUT", 15*time.Second),

@@ -83,6 +83,7 @@ func newApp(cfg *Config) (*App, error) {
 		StateSecret:    cfg.StateSecret,
 		StateTTL:       cfg.StateTTL,
 		AllowedDomains: cfg.AllowedEmailDomains,
+		AllowedEmails:  cfg.AllowedEmails,
 	}
 
 	oidcAuth, err := oidcauth.NewOIDCAuthenticator(oidcConfig, mbBackend, cookieManager)
