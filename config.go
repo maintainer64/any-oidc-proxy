@@ -19,6 +19,8 @@ type Config struct {
 	// Nocodb
 	NocodbAdminEmail    string
 	NocodbAdminPassword string
+	// Plane
+	PlaneDSN string
 	// OIDC
 	OIDCIssuer                 string
 	OIDCClientID               string
@@ -97,6 +99,8 @@ func loadConfig() (*Config, error) {
 		// Nocodb
 		NocodbAdminEmail:    os.Getenv("NOCODB_ADMIN_EMAIL"),
 		NocodbAdminPassword: os.Getenv("NOCODB_ADMIN_PASSWORD"),
+		// Plane
+		PlaneDSN: os.Getenv("PLANE_DSN"),
 		// OIDC
 		OIDCIssuer:                 os.Getenv("OIDC_ISSUER"),
 		OIDCClientID:               os.Getenv("OIDC_CLIENT_ID"),
@@ -147,6 +151,9 @@ func loadConfig() (*Config, error) {
 	if cfg.Type == "nocodb" && (cfg.NocodbAdminEmail == "" ||
 		cfg.NocodbAdminPassword == "") {
 		return nil, errors.New("missing required ENV by metabase: NOCODB_ADMIN_EMAIL, NOCODB_ADMIN_PASSWORD")
+	}
+	if cfg.Type == "plane" && cfg.PlaneDSN == "" {
+		return nil, errors.New("missing required ENV by metabase: PLANE_DSN")
 	}
 	return cfg, nil
 }

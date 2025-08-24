@@ -4,6 +4,7 @@ import (
 	"any-oidc-proxy/pkg/backend"
 	"any-oidc-proxy/pkg/backend/metabase"
 	"any-oidc-proxy/pkg/backend/nocodb"
+	"any-oidc-proxy/pkg/backend/plane"
 	oidcauth "any-oidc-proxy/pkg/oidc"
 	"errors"
 	"io"
@@ -41,6 +42,16 @@ func getBackend(cfg *Config) (backend.Backend, error) {
 			cfg.ProxyURL,
 			cfg.NocodbAdminEmail,
 			cfg.NocodbAdminPassword,
+			&http.Client{Timeout: cfg.HTTPRequestTimeoutBackend},
+		)
+		if err != nil {
+			return nil, err
+		}
+		return mbBackend, nil
+	case "plane":
+		mbBackend, err := plane.NewPlaneBackend(
+			cfg.ProxyURL,
+			cfg.PlaneDSN,
 			&http.Client{Timeout: cfg.HTTPRequestTimeoutBackend},
 		)
 		if err != nil {
