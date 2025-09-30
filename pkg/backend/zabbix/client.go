@@ -115,8 +115,9 @@ func (c *ZabbixClientRPC) UserLogin(ctx context.Context, username, password stri
 	form := url.Values{}
 	form.Set("name", username)
 	form.Set("password", password)
-	form.Set("enter", "Enter")
+	form.Set("enter", "Войти")
 	request, _ := http.NewRequestWithContext(ctx, "POST", c.urlLogin, strings.NewReader(form.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response, err := client.Do(request)
 	if err != nil {
 		return []string{}, fmt.Errorf("zabbix error login: %w", err)
@@ -124,7 +125,11 @@ func (c *ZabbixClientRPC) UserLogin(ctx context.Context, username, password stri
 	defer response.Body.Close()
 	cookies := response.Header.Values("Set-Cookie")
 	log.Debugf(
-		"user login %s by password, response cookies %+v, status %d", username, cookies, response.StatusCode,
+		"user login %s by password url: %s, response cookies %+v, status %d",
+		username,
+		c.urlLogin,
+		cookies,
+		response.StatusCode,
 	)
 	return cookies, err
 }
