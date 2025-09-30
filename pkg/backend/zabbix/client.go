@@ -115,6 +115,7 @@ func (c *ZabbixClientRPC) UserLogin(ctx context.Context, username, password stri
 	form := url.Values{}
 	form.Set("name", username)
 	form.Set("password", password)
+	form.Set("enter", "Enter")
 	request, _ := http.NewRequestWithContext(ctx, "POST", c.urlLogin, strings.NewReader(form.Encode()))
 	response, err := client.Do(request)
 	if err != nil {
