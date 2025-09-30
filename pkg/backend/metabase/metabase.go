@@ -41,7 +41,7 @@ func (m *MetabaseBackend) ProvisionUser(ctx context.Context, user backend.UserDa
 	randomPwd := oidcauth.GenPassword(24)
 	userExternal, err := m.client.FindOrCreateUser(ctx, user.Email, user.FirstName, user.LastName, randomPwd)
 	if err != nil {
-		log.Printf("metabase provision error: %v", err)
+		log.Infof("metabase provision error: %v", err)
 		return "", errors.New("metabase provision failed")
 	}
 	_ = m.client.UpdateUser(ctx, userExternal.ID, map[string]any{
@@ -62,12 +62,12 @@ func (m *MetabaseBackend) Login(ctx context.Context, userID string, userData bac
 	}
 	if err := m.client.ResetPassword(ctx, userExternalId, randomPwd); err != nil {
 		// Best-effort: if reset endpoint differs by version, try update fallback already done internally
-		log.Printf("password reset warning: %v", err)
+		log.Infof("password reset warning: %v", err)
 	}
 
 	sessionID, setCookies, err := m.client.LoginUser(ctx, userData.Email, randomPwd)
 	if err != nil || sessionID == "" {
-		log.Printf("metabase login error: %v", err)
+		log.Infof("metabase login error: %v", err)
 		return nil, errors.New("metabase login failed")
 	}
 	return setCookies, nil

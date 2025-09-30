@@ -158,12 +158,15 @@ func (a *OIDCAuthenticator) extractUserInfo(ctx context.Context, token *oauth2.T
 	}
 
 	var claims struct {
-		Sub               string `json:"sub"`
-		Email             string `json:"email"`
-		Name              string `json:"name"`
-		FamilyName        string `json:"family_name"`
-		GivenName         string `json:"given_name"`
-		PreferredUsername string `json:"preferred_username"`
+		Sub               string   `json:"sub"`
+		Email             string   `json:"email"`
+		Name              string   `json:"name"`
+		FamilyName        string   `json:"family_name"`
+		GivenName         string   `json:"given_name"`
+		PreferredUsername string   `json:"preferred_username"`
+		Username          string   `json:"username"`
+		Roles             []string `json:"roles"`
+		Groups            []string `json:"groups"`
 	}
 
 	if err := idToken.Claims(&claims); err != nil {
@@ -174,9 +177,11 @@ func (a *OIDCAuthenticator) extractUserInfo(ctx context.Context, token *oauth2.T
 
 	userData := backend.UserData{
 		Email:     claims.Email,
+		Name:      claims.Name,
 		FirstName: firstName,
 		LastName:  lastName,
 		Subject:   claims.Sub,
+		Groups:    append(claims.Roles, claims.Groups...),
 	}
 
 	if claims.FamilyName != "" {

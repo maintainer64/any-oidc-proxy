@@ -5,6 +5,7 @@ import (
 	"any-oidc-proxy/pkg/backend/metabase"
 	"any-oidc-proxy/pkg/backend/nocodb"
 	"any-oidc-proxy/pkg/backend/plane"
+	"any-oidc-proxy/pkg/backend/zabbix"
 	oidcauth "any-oidc-proxy/pkg/oidc"
 	"errors"
 	"io"
@@ -54,6 +55,12 @@ func getBackend(cfg *Config) (backend.Backend, error) {
 			cfg.PlaneDSN,
 			&http.Client{Timeout: cfg.HTTPRequestTimeoutBackend},
 		)
+		if err != nil {
+			return nil, err
+		}
+		return mbBackend, nil
+	case "zabbix":
+		mbBackend, err := zabbix.NewZabbixOIDC(cfg.ProxyURL, cfg.ZabbixToken)
 		if err != nil {
 			return nil, err
 		}
@@ -115,7 +122,7 @@ func (a *App) handleOIDC(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 	if err := a.oidcAuth.HandleCallback(w, r); err != nil {
-		log.Printf("OIDC callback error: %v", err)
+		log.Infof("OIDC callback error: %v", err)
 		http.Error(w, "Authentication failed", http.StatusInternalServerError)
 	}
 }
@@ -177,7 +184,7 @@ func (a *App) routes() http.Handler {
 		}
 	}
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, e error) {
-		log.Printf("proxy error: %v", e)
+		log.Infof("proxy error: %v", e)
 		http.Error(w, "Upstream error", http.StatusBadGateway)
 	}
 
@@ -197,7 +204,7 @@ func (a *App) Start() {
 		WriteTimeout: a.config.HTTPWriteTimeout,
 	}
 
-	log.Printf(
+	log.Infof(
 		"Listening on %s; proxy -> %s; OIDC path: %s",
 		a.config.ListenAddr,
 		a.config.ProxyURL,

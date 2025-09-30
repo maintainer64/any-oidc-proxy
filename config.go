@@ -21,6 +21,8 @@ type Config struct {
 	NocodbAdminPassword string
 	// Plane
 	PlaneDSN string
+	// Zabbix
+	ZabbixToken string
 	// OIDC
 	OIDCIssuer                 string
 	OIDCClientID               string
@@ -102,6 +104,8 @@ func loadConfig() (*Config, error) {
 		NocodbAdminPassword: os.Getenv("NOCODB_ADMIN_PASSWORD"),
 		// Plane
 		PlaneDSN: os.Getenv("PLANE_DSN"),
+		// Zabbix,
+		ZabbixToken: os.Getenv("ZABBIX_TOKEN"),
 		// OIDC
 		OIDCIssuer:                 os.Getenv("OIDC_ISSUER"),
 		OIDCClientID:               os.Getenv("OIDC_CLIENT_ID"),
@@ -152,10 +156,13 @@ func loadConfig() (*Config, error) {
 	}
 	if cfg.Type == "nocodb" && (cfg.NocodbAdminEmail == "" ||
 		cfg.NocodbAdminPassword == "") {
-		return nil, errors.New("missing required ENV by metabase: NOCODB_ADMIN_EMAIL, NOCODB_ADMIN_PASSWORD")
+		return nil, errors.New("missing required ENV by nocodb: NOCODB_ADMIN_EMAIL, NOCODB_ADMIN_PASSWORD")
 	}
 	if cfg.Type == "plane" && cfg.PlaneDSN == "" {
-		return nil, errors.New("missing required ENV by metabase: PLANE_DSN")
+		return nil, errors.New("missing required ENV by plane: PLANE_DSN")
+	}
+	if cfg.Type == "zabbix" && cfg.ZabbixToken == "" {
+		return nil, errors.New("missing required ENV by zabbix: ZABBIX_TOKEN")
 	}
 	return cfg, nil
 }

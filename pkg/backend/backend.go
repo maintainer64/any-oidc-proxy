@@ -8,9 +8,11 @@ import (
 // UserData содержит информацию о пользователе
 type UserData struct {
 	Email     string
+	Name      string
 	FirstName string
 	LastName  string
-	Subject   string // OIDC sub
+	Subject   string   // OIDC sub
+	Groups    []string // OIDC sub
 }
 
 // Backend интерфейс для взаимодействия с целевой системой
