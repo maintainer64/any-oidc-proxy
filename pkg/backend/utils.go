@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"net"
 	"net/http"
 	"strings"
 )
@@ -12,7 +13,7 @@ func parseAndRewriteCookies(setCookieHeaders []string, targetDomain string) []*h
 		// Парсим стандартными средствами
 		if cookie := parseCookieHeader(header); cookie != nil {
 			// Перезаписываем нужные поля
-			cookie.Domain = targetDomain
+			cookie.Domain = cleanDomain(targetDomain)
 			if cookie.SameSite == http.SameSiteDefaultMode {
 				cookie.SameSite = http.SameSiteLaxMode
 			}
@@ -21,6 +22,17 @@ func parseAndRewriteCookies(setCookieHeaders []string, targetDomain string) []*h
 	}
 
 	return cookies
+}
+
+func cleanDomain(domain string) string {
+	// Убираем порт если есть
+	if strings.Contains(domain, ":") {
+		host, _, err := net.SplitHostPort(domain)
+		if err == nil && host != "" {
+			return host
+		}
+	}
+	return domain
 }
 
 func parseCookieHeader(header string) *http.Cookie {
