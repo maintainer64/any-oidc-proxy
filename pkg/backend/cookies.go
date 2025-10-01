@@ -20,7 +20,6 @@ func (m *SimpleCookieManager) SetSessionCookies(w http.ResponseWriter, r *http.R
 	newCookies := parseAndRewriteCookies(cookies, r.Host)
 	for _, cookie := range newCookies {
 		cookie.Secure = m.secure
-		cookie.Domain = ""
 		cookie.Path = "/"
 		http.SetCookie(w, cookie)
 	}
