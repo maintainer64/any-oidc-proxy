@@ -5,31 +5,36 @@ import (
 )
 
 type SimpleCookieManager struct {
-	secure     bool
-	cookieName string
+	secure      bool
+	cookieNames []string
 }
 
-func NewSimpleCookieManager(secure bool, cookieName string) *SimpleCookieManager {
+func NewSimpleCookieManager(secure bool, cookieNames []string) *SimpleCookieManager {
 	return &SimpleCookieManager{
-		secure:     secure,
-		cookieName: cookieName,
+		secure:      secure,
+		cookieNames: cookieNames,
 	}
 }
 
 func (m *SimpleCookieManager) SetSessionCookies(w http.ResponseWriter, r *http.Request, cookies []string) {
-	for _, cookie := range cookies {
-		rewritten := rewriteSetCookieDomain(cookie, r.Host, m.secure)
-		w.Header().Add("Set-Cookie", rewritten)
+	newCookies := parseAndRewriteCookies(cookies, r.Host)
+	for _, cookie := range newCookies {
+		cookie.Secure = m.secure
+		cookie.Path = "/"
+		http.SetCookie(w, cookie)
 	}
 }
 
 func (m *SimpleCookieManager) ClearSessionCookies(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     m.cookieName,
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   m.secure,
-	})
+	for _, cookieName := range m.cookieNames {
+		http.SetCookie(w, &http.Cookie{
+			Name:     cookieName,
+			Value:    "",
+			Path:     "/",
+			MaxAge:   -1,
+			HttpOnly: true,
+			Secure:   m.secure,
+		})
+	}
+
 }

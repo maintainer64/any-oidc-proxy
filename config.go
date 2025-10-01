@@ -13,14 +13,15 @@ type Config struct {
 	Type        string
 	ProxyURL    string
 	// Metabase
-	MetabaseAdminEmail        string
-	MetabaseAdminPassword     string
-	MetabaseSessionCookieName string
+	MetabaseAdminEmail    string
+	MetabaseAdminPassword string
 	// Nocodb
 	NocodbAdminEmail    string
 	NocodbAdminPassword string
 	// Plane
 	PlaneDSN string
+	// Zabbix
+	ZabbixToken string
 	// OIDC
 	OIDCIssuer                 string
 	OIDCClientID               string
@@ -35,6 +36,7 @@ type Config struct {
 	SetUserInfoCookie          bool
 	AllowedEmailDomains        []string // optional allowlist, comma-separated
 	AllowedEmails              []string // optional allowlist, comma-separated
+	SessionCookieNames         []string // optional remove cookies, comma-separated
 	DefaultUserFirstName       string
 	DefaultUserLastName        string
 	HTTPReadTimeout            time.Duration
@@ -94,14 +96,15 @@ func loadConfig() (*Config, error) {
 		Type:        os.Getenv("TYPE"),
 		ProxyURL:    os.Getenv("PROXY_URL"),
 		// Metabase
-		MetabaseAdminEmail:        os.Getenv("METABASE_ADMIN_EMAIL"),
-		MetabaseAdminPassword:     os.Getenv("METABASE_ADMIN_PASSWORD"),
-		MetabaseSessionCookieName: getenv("METABASE_SESSION_COOKIE_NAME", "metabase.SESSION"),
+		MetabaseAdminEmail:    os.Getenv("METABASE_ADMIN_EMAIL"),
+		MetabaseAdminPassword: os.Getenv("METABASE_ADMIN_PASSWORD"),
 		// Nocodb
 		NocodbAdminEmail:    os.Getenv("NOCODB_ADMIN_EMAIL"),
 		NocodbAdminPassword: os.Getenv("NOCODB_ADMIN_PASSWORD"),
 		// Plane
 		PlaneDSN: os.Getenv("PLANE_DSN"),
+		// Zabbix,
+		ZabbixToken: os.Getenv("ZABBIX_TOKEN"),
 		// OIDC
 		OIDCIssuer:                 os.Getenv("OIDC_ISSUER"),
 		OIDCClientID:               os.Getenv("OIDC_CLIENT_ID"),
@@ -116,6 +119,7 @@ func loadConfig() (*Config, error) {
 		SetUserInfoCookie:          getenvBool("SET_USERINFO_COOKIE", true),
 		AllowedEmailDomains:        getenvCSV("ALLOWED_EMAIL_DOMAINS"),
 		AllowedEmails:              getenvCSV("ALLOWED_EMAILS"),
+		SessionCookieNames:         getenvCSV("COOKIES"),
 		DefaultUserFirstName:       getenv("DEFAULT_USER_FIRST_NAME", "User"),
 		DefaultUserLastName:        getenv("DEFAULT_USER_LAST_NAME", "OIDC"),
 		HTTPReadTimeout:            getenvDuration("HTTP_READ_TIMEOUT", 15*time.Second),
@@ -152,10 +156,13 @@ func loadConfig() (*Config, error) {
 	}
 	if cfg.Type == "nocodb" && (cfg.NocodbAdminEmail == "" ||
 		cfg.NocodbAdminPassword == "") {
-		return nil, errors.New("missing required ENV by metabase: NOCODB_ADMIN_EMAIL, NOCODB_ADMIN_PASSWORD")
+		return nil, errors.New("missing required ENV by nocodb: NOCODB_ADMIN_EMAIL, NOCODB_ADMIN_PASSWORD")
 	}
 	if cfg.Type == "plane" && cfg.PlaneDSN == "" {
-		return nil, errors.New("missing required ENV by metabase: PLANE_DSN")
+		return nil, errors.New("missing required ENV by plane: PLANE_DSN")
+	}
+	if cfg.Type == "zabbix" && cfg.ZabbixToken == "" {
+		return nil, errors.New("missing required ENV by zabbix: ZABBIX_TOKEN")
 	}
 	return cfg, nil
 }

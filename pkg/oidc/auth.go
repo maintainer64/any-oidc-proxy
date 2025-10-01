@@ -89,6 +89,7 @@ func (a *OIDCAuthenticator) StartAuth(w http.ResponseWriter, r *http.Request, re
 	}
 
 	authURL := a.config.AuthCodeURL(state)
+	a.cookieManager.ClearSessionCookies(w)
 	http.Redirect(w, r, authURL, http.StatusFound)
 	return nil
 }
@@ -133,13 +134,16 @@ func (a *OIDCAuthenticator) HandleCallback(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Логин в бэкенде
-	cookies, err := a.backend.Login(ctx, userID, userData)
+	resp, err := a.backend.Login(ctx, userID, userData)
 	if err != nil {
 		return fmt.Errorf("failed to login: %w", err)
 	}
 
 	// Установка куков
-	a.cookieManager.SetSessionCookies(w, r, cookies)
+	a.cookieManager.SetSessionCookies(w, r, resp.Cookies)
+	if resp.RedirectLocation != "" {
+		redirectURL = resp.RedirectLocation
+	}
 
 	// Редирект
 	http.Redirect(w, r, redirectURL, http.StatusFound)
@@ -158,12 +162,15 @@ func (a *OIDCAuthenticator) extractUserInfo(ctx context.Context, token *oauth2.T
 	}
 
 	var claims struct {
-		Sub               string `json:"sub"`
-		Email             string `json:"email"`
-		Name              string `json:"name"`
-		FamilyName        string `json:"family_name"`
-		GivenName         string `json:"given_name"`
-		PreferredUsername string `json:"preferred_username"`
+		Sub               string   `json:"sub"`
+		Email             string   `json:"email"`
+		Name              string   `json:"name"`
+		FamilyName        string   `json:"family_name"`
+		GivenName         string   `json:"given_name"`
+		PreferredUsername string   `json:"preferred_username"`
+		Username          string   `json:"username"`
+		Roles             []string `json:"roles"`
+		Groups            []string `json:"groups"`
 	}
 
 	if err := idToken.Claims(&claims); err != nil {
@@ -174,9 +181,11 @@ func (a *OIDCAuthenticator) extractUserInfo(ctx context.Context, token *oauth2.T
 
 	userData := backend.UserData{
 		Email:     claims.Email,
+		Name:      claims.Name,
 		FirstName: firstName,
 		LastName:  lastName,
 		Subject:   claims.Sub,
+		Groups:    append(claims.Roles, claims.Groups...),
 	}
 
 	if claims.FamilyName != "" {

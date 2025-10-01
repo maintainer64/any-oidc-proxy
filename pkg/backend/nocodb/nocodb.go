@@ -40,28 +40,30 @@ func (m *NocodbBackend) ProvisionUser(ctx context.Context, user backend.UserData
 	randomPwd := oidcauth.GenPassword(24)
 	userExternal, err := m.client.FindOrCreateUser(ctx, user.Email, user.FirstName, user.LastName, randomPwd)
 	if err != nil {
-		log.Printf("nocodb provision error: %v", err)
+		log.Infof("nocodb provision error: %v", err)
 		return "", errors.New("nocodb provision failed")
 	}
 	return userExternal.ID, nil
 }
 
-func (m *NocodbBackend) Login(ctx context.Context, userID string, userData backend.UserData) ([]string, error) {
+func (m *NocodbBackend) Login(ctx context.Context, userID string, userData backend.UserData) (*backend.UserRedirect, error) {
+	resp := &backend.UserRedirect{}
 	randomPwd := oidcauth.GenPassword(24)
 	token, err := m.client.PasswordGenerateResetUrl(ctx, userID)
 	if err != nil {
-		log.Printf("nocodb password reset error: %v", err)
+		log.Infof("nocodb password reset error: %v", err)
 		return nil, errors.New("nocodb password reset error")
 	}
 	err = m.client.PasswordSet(ctx, token, randomPwd)
 	if err != nil {
-		log.Printf("nocodb password set error: %v", err)
+		log.Infof("nocodb password set error: %v", err)
 		return nil, errors.New("nocodb password set error")
 	}
 	sessionID, setCookies, err := m.client.LoginUser(ctx, userData.Email, randomPwd)
 	if err != nil || sessionID == "" {
-		log.Printf("nocodb login error: %v", err)
+		log.Infof("nocodb login error: %v", err)
 		return nil, errors.New("metabase login failed")
 	}
-	return setCookies, nil
+	resp.Cookies = setCookies
+	return resp, nil
 }

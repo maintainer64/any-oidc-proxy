@@ -1,33 +1,80 @@
 package backend
 
-import "strings"
+import (
+	"net"
+	"net/http"
+	"strings"
+)
 
-func rewriteSetCookieDomain(sc, host string, secure bool) string {
-	parts := strings.Split(sc, ";")
-	out := make([]string, 0, len(parts)+2)
-	domainSet := false
-	for _, p := range parts {
-		k := strings.TrimSpace(p)
-		if strings.HasPrefix(strings.ToLower(k), "domain=") {
-			// overwrite with current host
-			out = append(out, "Domain="+host)
-			domainSet = true
-			continue
+func parseAndRewriteCookies(setCookieHeaders []string, targetDomain string) []*http.Cookie {
+	var cookies []*http.Cookie
+
+	for _, header := range setCookieHeaders {
+		// Парсим стандартными средствами
+		if cookie := parseCookieHeader(header); cookie != nil {
+			// Перезаписываем нужные поля
+			cookie.Domain = cleanDomain(targetDomain)
+			if cookie.SameSite == http.SameSiteDefaultMode {
+				cookie.SameSite = http.SameSiteLaxMode
+			}
+			cookies = append(cookies, cookie)
 		}
-		out = append(out, k)
 	}
-	if !domainSet {
-		// Leave host-only cookie (no Domain attr) -> browser uses current host
+
+	return cookies
+}
+
+func cleanDomain(domain string) string {
+	// Убираем порт если есть
+	if strings.Contains(domain, ":") {
+		host, _, err := net.SplitHostPort(domain)
+		if err == nil && host != "" {
+			return host
+		}
 	}
-	// Ensure Secure flag if desired
-	if secure && !containsAttr(out, "Secure") {
-		out = append(out, "Secure")
+	return domain
+}
+
+func parseCookieHeader(header string) *http.Cookie {
+	parts := strings.Split(header, ";")
+	if len(parts) == 0 {
+		return nil
 	}
-	// Ensure SameSite=Lax if not present
-	if !hasSameSiteAttr(out) {
-		out = append(out, "SameSite=Lax")
+
+	// Базовый парсинг name=value
+	nameValue := strings.SplitN(parts[0], "=", 2)
+	if len(nameValue) != 2 {
+		return nil
 	}
-	return strings.Join(out, "; ")
+
+	cookie := &http.Cookie{
+		Name:  strings.TrimSpace(nameValue[0]),
+		Value: strings.TrimSpace(nameValue[1]),
+	}
+
+	// Парсим атрибуты
+	for i := 1; i < len(parts); i++ {
+		attr := strings.TrimSpace(parts[i])
+		lowerAttr := strings.ToLower(attr)
+
+		if strings.HasPrefix(lowerAttr, "domain=") {
+			// Уже будем перезаписывать
+		} else if strings.HasPrefix(lowerAttr, "path=") {
+			cookie.Path = strings.TrimPrefix(attr, "path=")
+		} else if strings.HasPrefix(lowerAttr, "expires=") {
+			// Парсим дату...
+		} else if strings.HasPrefix(lowerAttr, "max-age=") {
+			// Парсим max-age...
+		} else if lowerAttr == "secure" {
+			cookie.Secure = true
+		} else if lowerAttr == "httponly" {
+			cookie.HttpOnly = true
+		} else if strings.HasPrefix(lowerAttr, "samesite=") {
+			// Парсим SameSite...
+		}
+	}
+
+	return cookie
 }
 
 func containsAttr(attrs []string, attr string) bool {
