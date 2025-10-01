@@ -5,9 +5,8 @@ import (
 )
 
 type SimpleCookieManager struct {
-	secure             bool
-	cookieNames        []string
-	sameSiteLaxDisable bool
+	secure      bool
+	cookieNames []string
 }
 
 func NewSimpleCookieManager(secure bool, cookieNames []string) *SimpleCookieManager {
