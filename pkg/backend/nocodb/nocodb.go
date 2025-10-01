@@ -46,7 +46,8 @@ func (m *NocodbBackend) ProvisionUser(ctx context.Context, user backend.UserData
 	return userExternal.ID, nil
 }
 
-func (m *NocodbBackend) Login(ctx context.Context, userID string, userData backend.UserData) ([]string, error) {
+func (m *NocodbBackend) Login(ctx context.Context, userID string, userData backend.UserData) (*backend.UserRedirect, error) {
+	resp := &backend.UserRedirect{}
 	randomPwd := oidcauth.GenPassword(24)
 	token, err := m.client.PasswordGenerateResetUrl(ctx, userID)
 	if err != nil {
@@ -63,5 +64,6 @@ func (m *NocodbBackend) Login(ctx context.Context, userID string, userData backe
 		log.Infof("nocodb login error: %v", err)
 		return nil, errors.New("metabase login failed")
 	}
-	return setCookies, nil
+	resp.Cookies = setCookies
+	return resp, nil
 }

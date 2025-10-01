@@ -133,13 +133,16 @@ func (a *OIDCAuthenticator) HandleCallback(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Логин в бэкенде
-	cookies, err := a.backend.Login(ctx, userID, userData)
+	resp, err := a.backend.Login(ctx, userID, userData)
 	if err != nil {
 		return fmt.Errorf("failed to login: %w", err)
 	}
 
 	// Установка куков
-	a.cookieManager.SetSessionCookies(w, r, cookies)
+	a.cookieManager.SetSessionCookies(w, r, resp.Cookies)
+	if resp.RedirectLocation != "" {
+		redirectURL = resp.RedirectLocation
+	}
 
 	// Редирект
 	http.Redirect(w, r, redirectURL, http.StatusFound)

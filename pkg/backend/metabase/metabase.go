@@ -53,7 +53,8 @@ func (m *MetabaseBackend) ProvisionUser(ctx context.Context, user backend.UserDa
 	return fmt.Sprintf("%d", userExternal.ID), nil
 }
 
-func (m *MetabaseBackend) Login(ctx context.Context, userID string, userData backend.UserData) ([]string, error) {
+func (m *MetabaseBackend) Login(ctx context.Context, userID string, userData backend.UserData) (*backend.UserRedirect, error) {
+	resp := &backend.UserRedirect{}
 	randomPwd := oidcauth.GenPassword(24)
 	userExternalId, err := strconv.Atoi(userID)
 	if err != nil {
@@ -70,5 +71,6 @@ func (m *MetabaseBackend) Login(ctx context.Context, userID string, userData bac
 		log.Infof("metabase login error: %v", err)
 		return nil, errors.New("metabase login failed")
 	}
-	return setCookies, nil
+	resp.Cookies = setCookies
+	return resp, nil
 }

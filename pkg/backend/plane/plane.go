@@ -34,7 +34,8 @@ func (pb *PlaneBackend) ProvisionUser(ctx context.Context, user backend.UserData
 	return user.Email, nil
 }
 
-func (pb *PlaneBackend) Login(ctx context.Context, userID string, userData backend.UserData) ([]string, error) {
+func (pb *PlaneBackend) Login(ctx context.Context, userID string, userData backend.UserData) (*backend.UserRedirect, error) {
+	resp := &backend.UserRedirect{}
 	randomPwd := oidcauth.GenPassword(24)
 	_, err := pb.createOrUpdateUser(
 		userData.Email,
@@ -43,13 +44,14 @@ func (pb *PlaneBackend) Login(ctx context.Context, userID string, userData backe
 		randomPwd,
 	)
 	if err != nil {
-		return []string{}, err
+		return resp, err
 	}
 	log.Debugf("user: %s password: %s", userData.Email, randomPwd)
 	cookies, err := pb.loginUser(ctx, userData.Email, randomPwd)
 	if err != nil {
 		log.Infof("Error on login user %+v", err)
-		return []string{}, err
+		return resp, err
 	}
-	return cookies, nil
+	resp.Cookies = cookies
+	return resp, nil
 }

@@ -15,13 +15,19 @@ type UserData struct {
 	Groups    []string // OIDC sub
 }
 
+// UserRedirect содержит инфорацию для подстановки данных пользователю
+type UserRedirect struct {
+	Cookies          []string
+	RedirectLocation string
+}
+
 // Backend интерфейс для взаимодействия с целевой системой
 type Backend interface {
 	// ProvisionUser создает или обновляет пользователя в системе
 	ProvisionUser(ctx context.Context, user UserData) (string, error)
 
 	// Login выполняет вход пользователя и возвращает сессионные куки
-	Login(ctx context.Context, userID string, userData UserData) ([]string, error)
+	Login(ctx context.Context, userID string, userData UserData) (*UserRedirect, error)
 }
 
 // CookieManager управляет куками сессии

@@ -81,26 +81,64 @@ func (c *ZabbixClientRPC) RoleCreate(ctx context.Context, name string) error {
 	return err
 }
 
+type GroupZabbix struct {
+	GroupID string `json:"usrgrpid"`
+}
+
+func (c *ZabbixClientRPC) GroupGet(ctx context.Context, name string) (*GroupZabbix, error) {
+	var result []GroupZabbix
+	params := map[string]interface{}{
+		"output": "extend",
+		"filter": map[string]interface{}{
+			"name": name,
+		},
+	}
+	err := c.client.Call(ctx, "usergroup.get", params, &result)
+	if err != nil {
+		return nil, err
+	}
+	if len(result) > 0 {
+		return &result[0], nil
+	}
+	return nil, err
+}
+
+func (c *ZabbixClientRPC) GroupCreate(ctx context.Context, name string) error {
+	var result interface{}
+	params := map[string]string{
+		"name": name,
+	}
+	err := c.client.Call(ctx, "usergroup.create", params, &result)
+	return err
+}
+
 func (c *ZabbixClientRPC) UserCreate(ctx context.Context, username, name, roleID string) error {
 	var result interface{}
 	passwd := uuid.New().String()
 	params := map[string]interface{}{
-		"username": username,
-		"name":     name,
-		"roleid":   roleID,
-		"passwd":   passwd,
+		"username":   username,
+		"name":       name,
+		"roleid":     roleID,
+		"passwd":     passwd,
+		"autologout": "15m",
 	}
 	err := c.client.Call(ctx, "user.create", params, &result)
 	return err
 }
 
-func (c *ZabbixClientRPC) UserUpdate(ctx context.Context, userid, name, roleID, randomPwd string) error {
+func (c *ZabbixClientRPC) UserUpdate(ctx context.Context, userid, name, roleID, groupID, randomPwd string) error {
 	var result interface{}
 	params := map[string]interface{}{
 		"userid": userid,
 		"name":   name,
 		"roleid": roleID,
-		"passwd": randomPwd,
+		"usrgrps": []interface{}{
+			map[string]interface{}{
+				"usrgrpid": groupID,
+			},
+		},
+		"passwd":     randomPwd,
+		"autologout": "15m",
 	}
 	err := c.client.Call(ctx, "user.update", params, &result)
 	return err
