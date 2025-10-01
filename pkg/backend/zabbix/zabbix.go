@@ -28,9 +28,7 @@ func (c *OIDC) ProvisionUser(ctx context.Context, user backend.UserData) (string
 }
 
 func (c *OIDC) Login(ctx context.Context, userID string, userData backend.UserData) (*backend.UserRedirect, error) {
-	resp := &backend.UserRedirect{
-		RedirectLocation: "/zabbix.php?action=dashboard.view",
-	}
+	resp := &backend.UserRedirect{}
 	roleName := "default::" + OIDCGroup
 	if len(userData.Groups) > 0 && userData.Groups[0] != "" {
 		roleName = userData.Groups[0] + "::" + OIDCGroup

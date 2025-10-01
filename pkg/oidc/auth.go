@@ -89,6 +89,7 @@ func (a *OIDCAuthenticator) StartAuth(w http.ResponseWriter, r *http.Request, re
 	}
 
 	authURL := a.config.AuthCodeURL(state)
+	a.cookieManager.ClearSessionCookies(w)
 	http.Redirect(w, r, authURL, http.StatusFound)
 	return nil
 }

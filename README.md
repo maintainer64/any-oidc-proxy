@@ -62,14 +62,15 @@ Keycloak, etc.).
 
 ### Опциональные настройки
 
-| Переменная              | Описание                    | По умолчанию           |
-|-------------------------|-----------------------------|------------------------|
-| `OIDC_SCOPE`            | OIDC scope (через запятую)  | `openid,email,profile` |
-| `OIDC_PROMPT`           | OIDC prompt параметр        | -                      |
-| `ALLOWED_EMAIL_DOMAINS` | Разрешенные домены email    | -                      |
-| `ALLOWED_EMAILS`        | Список разрешенных email    | -                      |
-| `SECURE_COOKIES`        | Использовать secure cookies | `true`                 |
-| `LOG_LEVEL`             | Уровень логирования         | `info`                 |
+| Переменная              | Описание                                      | По умолчанию           |
+|-------------------------|-----------------------------------------------|------------------------|
+| `OIDC_SCOPE`            | OIDC scope (через запятую)                    | `openid,email,profile` |
+| `OIDC_PROMPT`           | OIDC prompt параметр                          | -                      |
+| `ALLOWED_EMAIL_DOMAINS` | Разрешенные домены email                      | -                      |
+| `ALLOWED_EMAILS`        | Список разрешенных email                      | -                      |
+| `COOKIES`               | Список cookie для удаления при первом запросе | -                      |
+| `SECURE_COOKIES`        | Использовать secure cookies                   | `true`                 |
+| `LOG_LEVEL`             | Уровень логирования                           | `info`                 |
 
 ## 🐳 Docker развертывание
 

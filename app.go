@@ -73,7 +73,10 @@ func getBackend(cfg *Config) (backend.Backend, error) {
 func newApp(cfg *Config) (*App, error) {
 	mbBackend, err := getBackend(cfg)
 	// Менеджер куков
-	cookieManager := backend.NewSimpleCookieManager(cfg.SecureCookies, cfg.MetabaseSessionCookieName)
+	cookieManager := backend.NewSimpleCookieManager(
+		cfg.SecureCookies,
+		cfg.SessionCookieNames,
+	)
 
 	// OIDC аутентификатор
 	redirectURL, err := url.JoinPath(cfg.ExternalURL, cfg.OIDCPath, "callback")
