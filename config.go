@@ -22,6 +22,10 @@ type Config struct {
 	PlaneDSN string
 	// Zabbix
 	ZabbixToken string
+	// Docmost
+	DocmostDSN           string
+	DocmostWorkspaceName string
+	DocmostHostname      string
 	// OIDC
 	OIDCIssuer                 string
 	OIDCClientID               string
@@ -105,6 +109,10 @@ func loadConfig() (*Config, error) {
 		PlaneDSN: os.Getenv("PLANE_DSN"),
 		// Zabbix,
 		ZabbixToken: os.Getenv("ZABBIX_TOKEN"),
+		// Docmost
+		DocmostDSN:           os.Getenv("DOCMOST_DSN"),
+		DocmostWorkspaceName: getenv("DOCMOST_WORKSPACE_NAME", "Docs"),
+		DocmostHostname:      os.Getenv("DOCMOST_HOSTNAME"),
 		// OIDC
 		OIDCIssuer:                 os.Getenv("OIDC_ISSUER"),
 		OIDCClientID:               os.Getenv("OIDC_CLIENT_ID"),
@@ -163,6 +171,9 @@ func loadConfig() (*Config, error) {
 	}
 	if cfg.Type == "zabbix" && cfg.ZabbixToken == "" {
 		return nil, errors.New("missing required ENV by zabbix: ZABBIX_TOKEN")
+	}
+	if cfg.Type == "docmost" && cfg.DocmostDSN == "" {
+		return nil, errors.New("missing required ENV by docmost: DOCMOST_DSN")
 	}
 	return cfg, nil
 }

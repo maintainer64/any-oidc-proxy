@@ -58,7 +58,7 @@ func (m *MetabaseBackend) Login(ctx context.Context, userID string, userData bac
 	randomPwd := oidcauth.GenPassword(24)
 	userExternalId, err := strconv.Atoi(userID)
 	if err != nil {
-		log.Fatalf("Error converting string to int: %v", err)
+		log.Errorf("Error converting string to int: %v", err)
 		return nil, errors.New("invalid user id")
 	}
 	if err := m.client.ResetPassword(ctx, userExternalId, randomPwd); err != nil {

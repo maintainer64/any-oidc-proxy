@@ -1,22 +1,27 @@
-# OIDC Proxy for Metabase/Nocobase
+# OIDC Proxy
 
-Универсальный OIDC прокси для аутентификации через внешние OIDC провайдеры (Google, Azure AD,
-Keycloak, etc.).
+Универсальный OIDC прокси для аутентификации через внешние OIDC провайдеры
+(Keycloak, Authelia, Google, Azure AD) с автоматическим созданием пользователей
+в целевом приложении.
 
-## Инструменты:
+## Поддерживаемые приложения
 
 1. Metabase (https://www.metabase.com/)
-2. Nocobase (https://nocodb.com/)
+2. Nocodb (https://nocodb.com/)
 3. Plane (https://plane.so)
 4. Zabbix (https://www.zabbix.com)
+5. Docmost (https://docmost.com) — создание пользователей напрямую в БД
+   (bcrypt-хеш пароля) + вход через `/api/auth/login`; первый OIDC-пользователь
+   выполняет initial setup и становится владельцем воркспейса
 
 ## 🚀 Возможности
 
-- 🔐 OIDC аутентификация для Metabase и Nocobase
-- 👥 Автоматическое создание пользователей
-- 🍪 Управление сессионными куками
+- 🔐 OIDC аутентификация для всех поддерживаемых приложений
+- 👥 Автоматическое создание пользователей (провижининг) при первом входе
+- 🍪 Управление сессионными куками целевого приложения
+- 🔌 Reverse proxy с поддержкой WebSocket и SSE (нужно для realtime Docmost)
 - ⚡ Высокая производительность
-- 🐳 Docker контейнер с минимальным образом
+- 🐳 Docker образ (multi-arch: linux/amd64, linux/arm64) в ghcr.io
 - 🔧 Гибкая конфигурация через переменные окружения
 
 ## 📦 Переменные окружения
@@ -27,7 +32,7 @@ Keycloak, etc.).
 |----------------------|----------------------------------------|---------------------------------|
 | `LISTEN_ADDR`        | Адрес и порт для прослушивания         | `0.0.0.0:8000`                  |
 | `EXTERNAL_URL`       | Внешний URL приложения                 | `https://analytics.example.com` |
-| `TYPE`               | Тип бэкенда: `metabase` или `nocobase` | `metabase`                      |
+| `TYPE`               | Тип бэкенда: `metabase`, `nocodb`, `plane`, `zabbix` или `docmost` | `metabase`                      |
 | `PROXY_URL`          | URL целевого приложения                | `http://metabase:3000`          |
 | `OIDC_ISSUER`        | URL OIDC провайдера                    | `https://accounts.google.com`   |
 | `OIDC_CLIENT_ID`     | OIDC Client ID                         | `your-client-id`                |
@@ -60,6 +65,18 @@ Keycloak, etc.).
 |----------------|-------------------------------------------------|----------------------------------------|
 | `ZABBIX_TOKEN` | Токен API RPC для создания ролей и пользователя | `7ac5676d-13ea-4231-b40f-7d067b564d34` |
 
+### Настройки для Docmost
+
+| Переменная               | Описание                                                | По умолчанию |
+|--------------------------|---------------------------------------------------------|--------------|
+| `DOCMOST_DSN`            | DSN подключения к БД Docmost (PostgreSQL)               | — (обязательна) |
+| `DOCMOST_WORKSPACE_NAME` | Имя воркспейса при initial setup                        | `Docs`       |
+| `DOCMOST_HOSTNAME`       | Hostname воркспейса (если Docmost привязан к субдомену) | —            |
+
+> Прокси должен иметь доступ к БД Docmost (создаёт/обновляет пользователей
+> и находит воркспейс). Права обычного пользователя БД Docmost достаточны.
+> Сессионная кука Docmost — `authToken`, её нужно указать в `COOKIES`.
+
 ### Опциональные настройки
 
 | Переменная              | Описание                                      | По умолчанию           |
@@ -68,8 +85,9 @@ Keycloak, etc.).
 | `OIDC_PROMPT`           | OIDC prompt параметр                          | -                      |
 | `ALLOWED_EMAIL_DOMAINS` | Разрешенные домены email                      | -                      |
 | `ALLOWED_EMAILS`        | Список разрешенных email                      | -                      |
-| `COOKIES`               | Список cookie для удаления при первом запросе | -                      |
+| `COOKIES`               | Список cookie целевого приложения (например `authToken`) | -                      |
 | `SECURE_COOKIES`        | Использовать secure cookies                   | `true`                 |
+| `PROXY_REWRITE_LOCATION_HEADER` | Переписывать `Location` из бэкенда на внешний URL | `false`         |
 | `LOG_LEVEL`             | Уровень логирования                           | `info`                 |
 
 ## 🐳 Docker развертывание
@@ -78,7 +96,7 @@ Keycloak, etc.).
 
 ```bash
 # Клонируйте репозиторий
-git clone https://github.com/your-username/any-oidc-proxy.git
+git clone git@github.com:maintainer64/any-oidc-proxy.git
 cd any-oidc-proxy
 
 # Соберите бинарник
@@ -87,9 +105,13 @@ make build
 # Соберите Docker образ
 make docker-build
 
-# Запушите в registry
+# Запушите в registry (ghcr.io)
 make docker-push
 ```
+
+Образы публикуются в GitHub Container Registry:
+`ghcr.io/maintainer64/any-oidc-proxy:<tag>` (теги `latest`, `main`,
+`<major>.<minor>`, `<version>`, `sha-<commit>`).
 
 ### Запуск контейнера
 
@@ -108,7 +130,7 @@ docker run -d \
   -e OIDC_CLIENT_SECRET=your-client-secret \
   -e STATE_SECRET=your-secret-key \
   -e ALLOWED_EMAIL_DOMAINS=example.com \
-  docker.io/maintainer64/any-oidc-proxy:latest
+  ghcr.io/maintainer64/any-oidc-proxy:latest
 ```
 
 ## 🔧 Локальная разработка
@@ -148,17 +170,22 @@ METABASE_ADMIN_PASSWORD=password \
 
 ```
 any-oidc-proxy/
-├── cmd/
-│   └── main.go          # Основное приложение
+├── main.go              # Точка входа
+├── app.go               # OIDC-роуты + reverse proxy
+├── ws_tunnel.go         # WebSocket-туннель
+├── config.go            # Конфигурация из переменных окружения
 ├── pkg/
-│   ├── backend/         # Интерфейсы бэкендов
-│   ├── metabase/        # Реализация для Metabase
-│   ├── nocobase/        # Реализация для Nocobase
-│   └── oidcauth/        # OIDC аутентификатор
+│   ├── backend/         # Интерфейсы бэкендов и cookie-менеджер
+│   │   ├── metabase/    # Реализация для Metabase
+│   │   ├── nocodb/      # Реализация для Nocodb
+│   │   ├── plane/       # Реализация для Plane
+│   │   ├── zabbix/      # Реализация для Zabbix
+│   │   └── docmost/     # Реализация для Docmost (БД + API)
+│   └── oidc/            # OIDC аутентификатор
 ├── Dockerfile           # Docker конфигурация
-├── Makefile            # Утилиты сборки
-├── go.mod              # Go зависимости
-└── README.md           # Документация
+├── Makefile             # Утилиты сборки
+├── go.mod               # Go зависимости
+└── README.md            # Документация
 ```
 
 ## 📋 Пример docker-compose.yml
@@ -168,7 +195,7 @@ version: '3.8'
 
 services:
   oidc-proxy:
-    image: docker.io/maintainer64/any-oidc-proxy:latest
+    image: ghcr.io/maintainer64/any-oidc-proxy:latest
     ports:
       - "8000:8000"
     environment:
@@ -227,6 +254,17 @@ volumes:
 ```bash
 curl http://localhost:8000/healthz
 # ok
+```
+
+## 🧪 Тесты
+
+```bash
+# единица + полный OIDC-флоу (mock OIDC-провайдер, без внешних зависимостей)
+go test ./... -count=1
+
+# тесты docmost-backend с настоящим PostgreSQL (в CI — сервис в workflow)
+TEST_DATABASE_URL=postgresql://docmost:pwd@localhost:5432/docmost?sslmode=disable \
+  go test ./pkg/backend/docmost/ -count=1
 ```
 
 ## 📄 Лицензия

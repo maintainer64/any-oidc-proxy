@@ -32,3 +32,6 @@ go.work.sum
 .vscode/
 dist/
 build/
+
+# macOS
+.DS_Store
