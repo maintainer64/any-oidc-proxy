@@ -14,7 +14,8 @@ func parseAndRewriteCookies(setCookieHeaders []string, targetDomain string) []*h
 		if cookie := parseCookieHeader(header); cookie != nil {
 			// Перезаписываем нужные поля
 			cookie.Domain = cleanDomain(targetDomain)
-			if cookie.SameSite == http.SameSiteDefaultMode {
+			// SameSiteDefaultMode == 1 в net/http, ноль означает "атрибут отсутствует"
+			if cookie.SameSite == http.SameSite(0) {
 				cookie.SameSite = http.SameSiteLaxMode
 			}
 			cookies = append(cookies, cookie)
@@ -60,7 +61,7 @@ func parseCookieHeader(header string) *http.Cookie {
 		if strings.HasPrefix(lowerAttr, "domain=") {
 			// Уже будем перезаписывать
 		} else if strings.HasPrefix(lowerAttr, "path=") {
-			cookie.Path = strings.TrimPrefix(attr, "path=")
+			cookie.Path = attr[strings.Index(attr, "=")+1:]
 		} else if strings.HasPrefix(lowerAttr, "expires=") {
 			// Парсим дату...
 		} else if strings.HasPrefix(lowerAttr, "max-age=") {
@@ -70,7 +71,14 @@ func parseCookieHeader(header string) *http.Cookie {
 		} else if lowerAttr == "httponly" {
 			cookie.HttpOnly = true
 		} else if strings.HasPrefix(lowerAttr, "samesite=") {
-			// Парсим SameSite...
+			switch strings.ToLower(strings.TrimPrefix(lowerAttr, "samesite=")) {
+			case "lax":
+				cookie.SameSite = http.SameSiteLaxMode
+			case "strict":
+				cookie.SameSite = http.SameSiteStrictMode
+			case "none":
+				cookie.SameSite = http.SameSiteNoneMode
+			}
 		}
 	}
 

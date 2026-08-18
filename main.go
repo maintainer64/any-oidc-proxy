@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
-	"os"
 )
 
 func init() {
@@ -15,10 +14,12 @@ func init() {
 
 func main() {
 	config, err := loadConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
 	level, err := log.ParseLevel(config.LogLevel)
 	if err != nil {
-		log.Fatal("Invalid log level specified: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Invalid log level specified: %v", err)
 	}
 	log.SetLevel(level)
 	log.SetFormatter(&log.TextFormatter{

@@ -5,6 +5,11 @@ import (
 	"net/http"
 )
 
+// HTTPClient — минимальный интерфейс HTTP-клиента (тестируется моками).
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 // UserData содержит информацию о пользователе
 type UserData struct {
 	Email     string

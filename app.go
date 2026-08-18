@@ -2,6 +2,7 @@ package main
 
 import (
 	"any-oidc-proxy/pkg/backend"
+	"any-oidc-proxy/pkg/backend/docmost"
 	"any-oidc-proxy/pkg/backend/metabase"
 	"any-oidc-proxy/pkg/backend/nocodb"
 	"any-oidc-proxy/pkg/backend/plane"
@@ -61,6 +62,17 @@ func getBackend(cfg *Config) (backend.Backend, error) {
 		return mbBackend, nil
 	case "zabbix":
 		mbBackend, err := zabbix.NewZabbixOIDC(cfg.ProxyURL, cfg.ZabbixToken)
+		if err != nil {
+			return nil, err
+		}
+		return mbBackend, nil
+	case "docmost":
+		mbBackend, err := docmost.NewDocmostBackend(
+			cfg.ProxyURL,
+			cfg.DocmostDSN,
+			&http.Client{Timeout: cfg.HTTPRequestTimeoutBackend},
+			docmost.WithSetupParams(cfg.DocmostWorkspaceName, cfg.DocmostHostname),
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +148,7 @@ func (a *App) routes() http.Handler {
 	callbackPath := strings.TrimSuffix(a.config.OIDCPath, "/") + "/callback"
 	proxyURL, err := url.Parse(a.config.ProxyURL)
 	if err != nil {
-		log.Warnf("PROXY_URL parse: %w", err)
+		log.Warnf("PROXY_URL parse: %v", err)
 		return nil
 	}
 
@@ -173,6 +185,7 @@ func (a *App) routes() http.Handler {
 			}
 		}
 	}
+	proxy.FlushInterval = -1 // flush per-chunk (SSE / realtime streaming)
 	if a.config.ProxyRewriteLocationHeader {
 		proxy.ModifyResponse = func(resp *http.Response) error {
 			loc := resp.Header.Get("Location")
@@ -193,6 +206,10 @@ func (a *App) routes() http.Handler {
 
 	// everything else -> proxy
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if isWebSocketUpgrade(r) {
+			a.handleWebSocketTunnel(w, r, proxyURL)
+			return
+		}
 		proxy.ServeHTTP(w, r)
 	})
 
