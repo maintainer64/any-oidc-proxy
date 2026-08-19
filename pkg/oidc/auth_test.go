@@ -30,6 +30,8 @@ type mockProvider struct {
 	issuer         string
 	authorizeCalls []url.Values
 	tokenCalls     int
+	sparseIDToken  bool
+	userInfo       map[string]any
 }
 
 func newMockProvider(t *testing.T, clientID, clientSecret string) *mockProvider {
@@ -46,11 +48,20 @@ func newMockProvider(t *testing.T, clientID, clientSecret string) *mockProvider 
 			"issuer":                                mp.issuer,
 			"authorization_endpoint":                mp.issuer + "/authorize",
 			"token_endpoint":                        mp.issuer + "/token",
+			"userinfo_endpoint":                     mp.issuer + "/userinfo",
 			"jwks_uri":                              mp.issuer + "/jwks",
 			"response_types_supported":              []string{"code"},
 			"subject_types_supported":               []string{"public"},
 			"id_token_signing_alg_values_supported": []string{"RS256"},
 		})
+	})
+	mux.HandleFunc("/userinfo", func(w http.ResponseWriter, r *http.Request) {
+		if mp.userInfo == nil {
+			http.Error(w, "no userinfo", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(mp.userInfo)
 	})
 	mux.HandleFunc("/jwks", func(w http.ResponseWriter, r *http.Request) {
 		pub := mp.key.Public().(*rsa.PublicKey)
@@ -107,14 +118,16 @@ func (mp *mockProvider) serveToken(w http.ResponseWriter, r *http.Request) {
 	}
 	now := time.Now()
 	claims := map[string]any{
-		"iss":    mp.issuer,
-		"sub":    "user-sub-42",
-		"aud":    mp.clientID,
-		"exp":    now.Add(10 * time.Minute).Unix(),
-		"iat":    now.Unix(),
-		"email":  "ivan@gubanov.site",
-		"name":   "Ivan Ivanov",
-		"groups": []string{"docs"},
+		"iss": mp.issuer,
+		"sub": "user-sub-42",
+		"aud": mp.clientID,
+		"exp": now.Add(10 * time.Minute).Unix(),
+		"iat": now.Unix(),
+	}
+	if !mp.sparseIDToken {
+		claims["email"] = "ivan@gubanov.site"
+		claims["name"] = "Ivan Ivanov"
+		claims["groups"] = []string{"docs"}
 	}
 	idToken, err := mp.sign(claims)
 	if err != nil {
@@ -338,6 +351,53 @@ func TestOIDCRejectsTamperedState(t *testing.T) {
 		"https://docs.gubanov.site/oidc/callback?code=x&state=forged", nil))
 	if err == nil || !strings.Contains(err.Error(), "state") {
 		t.Fatalf("err = %v, want state error", err)
+	}
+}
+
+// Authelia ≥4.38 отдаёт в ID-токене только sub: профиль (email/name) —
+// через userinfo. Прокси обязан достроить данные оттуда.
+func TestOIDCUserInfoFallback(t *testing.T) {
+	mp := newMockProvider(t, "docmost", "secret")
+	mp.sparseIDToken = true
+	mp.userInfo = map[string]any{
+		"sub":                "user-sub-42",
+		"email":              "maria@gubanov.site",
+		"email_verified":     true,
+		"name":               "Maria Petrova",
+		"preferred_username": "maria",
+		"groups":             []string{"docs"},
+	}
+	fb := &fakeBackend{}
+	auth := mustAuth(t, oidcauth.Config{
+		IssuerURL:    mp.issuer,
+		ClientID:     mp.clientID,
+		ClientSecret: mp.clientSecret,
+		RedirectURL:  "https://docs.gubanov.site/oidc/callback",
+		Scopes:       []string{"openid", "email", "profile"},
+		StateSecret:  "test-state-secret",
+		StateTTL:     5 * time.Minute,
+	}, fb)
+
+	state, _ := startAuth(t, auth, mp)
+	rec := callback(t, auth, state)
+	if rec.Code != http.StatusFound {
+		t.Fatalf("callback status = %d, want 302", rec.Code)
+	}
+	if len(fb.provisioned) != 1 {
+		t.Fatalf("provisioned = %d calls, want 1", len(fb.provisioned))
+	}
+	u := fb.provisioned[0]
+	if u.Email != "maria@gubanov.site" {
+		t.Errorf("email = %q, want maria@gubanov.site", u.Email)
+	}
+	if u.Name != "Maria Petrova" {
+		t.Errorf("name = %q, want Maria Petrova", u.Name)
+	}
+	if u.Subject != "user-sub-42" {
+		t.Errorf("subject = %q", u.Subject)
+	}
+	if len(u.Groups) != 1 || u.Groups[0] != "docs" {
+		t.Errorf("groups = %v, want [docs]", u.Groups)
 	}
 }
 

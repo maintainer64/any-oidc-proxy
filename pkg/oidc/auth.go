@@ -20,6 +20,7 @@ import (
 
 type OIDCAuthenticator struct {
 	config         *oauth2.Config
+	provider       *oidc.Provider
 	verifier       *oidc.IDTokenVerifier
 	backend        backend.Backend
 	cookieManager  backend.CookieManager
@@ -72,6 +73,7 @@ func NewOIDCAuthenticator(cfg Config, backend backend.Backend, cookieManager bac
 
 	return &OIDCAuthenticator{
 		config:         oauthConfig,
+		provider:       provider,
 		verifier:       verifier,
 		backend:        backend,
 		cookieManager:  cookieManager,
@@ -175,6 +177,34 @@ func (a *OIDCAuthenticator) extractUserInfo(ctx context.Context, token *oauth2.T
 
 	if err := idToken.Claims(&claims); err != nil {
 		return backend.UserData{}, fmt.Errorf("failed to parse claims: %w", err)
+	}
+
+	// Достаточно ли данных из ID-токена? Некоторые провайдеры (Authelia ≥4.38)
+	// отдают в ID-токене только sub, а email/name — через userinfo endpoint.
+	if claims.Email == "" && claims.Name == "" {
+		userInfo, err := a.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
+		if err == nil {
+			var uiClaims struct {
+				Email             string   `json:"email"`
+				Name              string   `json:"name"`
+				FamilyName        string   `json:"family_name"`
+				GivenName         string   `json:"given_name"`
+				PreferredUsername string   `json:"preferred_username"`
+				Username          string   `json:"username"`
+				Roles             []string `json:"roles"`
+				Groups            []string `json:"groups"`
+			}
+			if err := userInfo.Claims(&uiClaims); err == nil {
+				claims.Email = uiClaims.Email
+				claims.Name = uiClaims.Name
+				claims.FamilyName = uiClaims.FamilyName
+				claims.GivenName = uiClaims.GivenName
+				claims.PreferredUsername = uiClaims.PreferredUsername
+				claims.Username = uiClaims.Username
+				claims.Roles = uiClaims.Roles
+				claims.Groups = uiClaims.Groups
+			}
+		}
 	}
 
 	lastName, firstName := a.splitName(claims.Name)
